@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+
+if [ $# -le 0 ]; then
+    echo 
+    echo  " syntax:  epos [-hepmc] [-root] [-cproot] [-q|-c] "
+    echo  "            [-eee[e] \$e1 \$e2 \$e3] [-n \$n] \$filen [\$n]"
+    echo 
+    exit 1
+fi
+
+[[ -z ${EPOS4DATA} ]] && { echo "Specify EPOS4DATA to point to EPOS4 data files"; exit 1; }
+
+NOW="$(date +%Y%m%d_%H%M%S)"
+# Create temporary run dir (relative to location of PWD)
+RUNDIR="$(mktemp -d -p $(pwd -P) epos4run_XXXXXX_${NOW})"
+
+hepmc='no'
+root='no'
+cproot='no'
+scr='no'
+ext=''
+num='0'
+prone=''
+mi1='no'
+mi5='no'
+system="i"
+ext1='-'
+ext2='-'
+ext3='-'
+ext4='-'
+tmp='-'
+end=0
+gefac=1
+
+while [ ${end} -eq 0 ]; do
+   end=1
+   case "${1}" in
+   -n)    shift
+          num="${1}"
+          shift
+          end=0
+          ;;
+   -e1)   shift
+          ext1="${1}"
+          shift
+          end=0
+          ;;
+   -e2)   shift
+          ext2="${1}"
+          shift
+          end=0
+          ;;
+   -e3)   shift
+          ext3="${1}"
+          shift
+          end=0
+          ;;
+   -eeee) shift
+          ext1="${1}"
+          shift
+          ext2="${1}"
+          shift
+          ext3="${1}"
+          shift
+          ext4="0"
+          end=0
+          ;;
+   -eee)  shift
+          ext1="${1}"
+          shift
+          ext2="${1}"
+          shift
+          ext3="${1}"
+          shift
+          end=0
+          ;;
+   -ee)  shift
+         ext1="${1}"
+         shift
+         ext2="${1}"
+         shift
+         end=0
+         ;;
+   -hepmc) shift
+           hepmc="yes"
+           end=0
+           ;;
+   -root)  shift
+           root="yes"
+           end=0
+           ;;
+   -gf)    shift
+           gefac="${1}"
+           shift
+           end=0
+           ;;
+   -cproot) shift
+            cproot="yes"
+            end=0
+            ;;
+   -scr)    shift
+            system="-q"
+            end=0
+            ;;
+   -q)      shift
+            system="-q"
+            end=0
+            ;;
+   -c)      shift
+            system="-c"
+            end=0
+            ;;
+   -1)      shift
+            mi1="yes"
+            end=0
+            ;;
+   -5)      shift
+            mi5="yes"
+            end=0
+            ;;
+   esac
+done
+
+rootcproot="${root}${cproot}"
+
+filei="${1}"
+shift
+
+[[ $# -gt 0 ]] && num="${1}"
+
+# establish proper name and location of input file
+inputfile_dir="$(dirname ${filei})"
+[[ "${inputfile_dir}" == '.' ]] && inputfile_dir=""
+inputfile_name="$(basename ${filei} .optns)"
+
+inputfile_name_full="${inputfile_dir}/${inputfile_name}.optns"
+[[ -f "${inputfile_name_full}" ]] && { echo "${inputfile_name_full} could not be found"; exit 1; }
+
+# add extensions (?)
+[[ "${ext1}" != "-" ]] && inputfile_name="${inputfile_name}${ext1}"
+[[ "${ext2}" != "-" ]] && inputfile_name="${inputfile_name}${ext2}"
+[[ "${ext3}" != "-" ]] && inputfile_name="${inputfile_name}${ext3}"
+
+# create a new input filename with the template of z-FN-NUM.optns
+inputfile_name_new="z-${inputfile_name}-${num}.optns"
+cp -v "${filei}.optns" "${RUNDIR}/${inputfile_name_new}" || { echo "Could not copy ${inputfile_name_new} to RUNDIR"; exit 1; }
+
+# change to temporary dir
+cd "${RUNDIR}"
+
+# Get two real random number to be used
+# upper limit is --> seedi larger than 1.0E+09
+RAND_SEED1="$(od -A n -t u -N 3 /dev/urandom)"
+sleep 0.5
+RAND_SEED2="$(od -A n -t u -N 3 /dev/urandom)"
+
+#################################################
+# Set some old vars just to have them inplace
+# executables (LIBDIR), directories for input (OPT), histogram output (HTO) and other kinds of output like run information and checks (CHK)
+CHK="./"
+OPX="./"
+OPT="./"
+HTO="./"
+EPO="./"
+
+# We are in temporary dir RUNDIR, lets have executable as symlink in current dir
+EXEC="Xepos"
+LIBDIR=${LIBDIR:-/software/alice/epos/bin}
+[[ -e "${LIBDIR}/${EXEC}" ]] && ln -s "${LIBDIR}/${EXEC}" "${EXEC}" || { echo "${EXEC} could not be found in ${LIBDIR}"; exit 1; }
+
+EPOSDIR="${LIBDIR}/.."
+
+# VERSION.txt file is requested, let's give it
+ln -s "${EPOSDIR}/VERSION.txt" VERSION.txt
+
+# README.txt file is requested, let's give it (???)
+ln -s "${EPOSDIR}/README.md" README.md
+
+# data files locations are hardcoded in the form of /src/..
+# let's try to provide this with a symlink
+ln -s ${EPOS4DATA} src
+
+# Generate base (??) instruction card for simulation
+clinput="$(basename ${inputfile_name_new} .optns).clinput"
+
+echo "echo on
+!fname mtr ${CHK}z-${one}.mtr
+set seedj ${RAND_SEED1} set seedi ${RAND_SEED2}
+rootcproot ${rootcproot}
+system ${system}
+ext1 ${ext1}
+ext3 ${ext3}
+ext4 ${ext4}
+set gefac ${gefac}
+!!!beginoptns spherio !No longer used.
+!!!...                !See version < 3118
+!!!endoptns spherio   !if needed again
+fname pathep $EPO
+!-------HQ--------
+fname user1  ${EPOS4DATA}/VOt/
+fname user3  ${EPOS4DATA}/URt/
+fname user2  ${HTO}z-${one}.hq
+!-------HQ END--------
+
+fname histo  ${HTO}z-${one}.histo
+fname check  ${CHK}z-${one}.check
+fname copy   ${CHK}z-${one}.copy
+fname log    ${CHK}z-${one}.log
+fname data   ${CHK}z-${one}.data
+
+fname pathpdf ${EPOS4DATA}/TPt/
+fname initl   ${EPOS4DATA}/KWt/aa.i
+fname inidi   ${EPOS4DATA}/TPt/di.i
+fname inidr   ${EPOS4DATA}/KWt/dr.i
+fname iniev   ${EPOS4DATA}/KWt/ev.i
+fname inirj   ${EPOS4DATA}/KWt/rj.i
+fname inics   ${EPOS4DATA}/TPt/cs.i
+fname inigrv  ${EPOS4DATA}/grv.i
+fname partab  ${EPOS4DATA}/YK/ptl6.data
+fname dectab  ${EPOS4DATA}/YK/dky6.data
+fname hpf     ${EPOS4DATA}/UR/tables.dat
+
+fqgsjet dat    ${EPOS4DATA}/qgsjet/qgsjet.dat
+fqgsjet ncs    ${EPOS4DATA}/qgsjet/qgsjet.ncs
+fqgsjetII dat  ${EPOS4DATA}/qgsjetII/qgsdat-II-03
+fqgsjetII ncs  ${EPOS4DATA}/qgsjetII/sectnu-II-03
+
+nodecay 1220
+nodecay -1220
+nodecay 120
+nodecay -120
+nodecay 130
+nodecay -130
+nodecay -20
+nodecay 14
+nodecay -14
+nodecay 16
+nodecay -16
+
+input  ${EPOS4DATA}/config/parbf.i
+input  ${EPOS4DATA}/config/partx.i
+input  ${EPOS4DATA}/KWn/paraf.i
+input  ${inputfile_name_new}
+
+runprogram
+stopprogram
+" > ${clinput}
+
+# to use gdb, type "epos ..." as usually, then in gdb type "run", then "z-clinput"  
+#gdb ${OBJ}epos$EPOVSN/Xepos 
+
+time ./Xepos -n <<EOF
+$clinput
+EOF
+
+date
+exit
+
+
+rm $clinput
+if [ -s ${CHK}z-${one}.data ]; then
+  echo "###############################################################"
+  echo "      output written to ${CHK}z-${one}.data"
+  echo "###############################################################"
+else
+  rm -f ${CHK}z-${one}.data
+fi 
+rm -f ${CHK}z-${one}.dump
+if [ "$root" = "no" ]; then 
+rm -f ${CHK}z-${one}.root
+fi
+if [ ! -s ${CHK}z-${one}.check ]; then
+  rm -f ${CHK}z-${one}.check
+fi
+if [ ! -s ${HTO}z-${one}.histo ]; then
+  rm -f ${HTO}z-${one}.histo
+fi
+if [ ! -s ${HTO}z-${one}.hq ]; then
+  rm -f ${HTO}z-${one}.hq
+fi
+if [ ! -s ${CHK}z-${one}.hepmc ]; then
+  rm -f ${CHK}z-${one}.hepmc
+fi
+if [ -s ${CHK}z-${one}.hepmc ]; then
+ if [ "$hepmc" = "no" ]; then 
+  rm -f ${CHK}z-${one}.hepmc
+ fi
+fi
+
+rm -f ${OPX}z-${one}.optns
+rm -f ${CHK}z-${one}.log
+rm -f ${CHK}z-${one}.copy
+rm -f ${CHK}z-${one}.copyDo1
+rm -f ${CHK}z-${one}.copyDo2
+rm -f ${HTO}z-${one}.ztr
+rm -f ${CHK}z-${one}.dataR
+
+if [ ! "$tmp" = "-" ]; then
+rm -v $tmp 
+fi
+
+if [ -s ${CHK}z-${one}.see ]; then
+rm -f ${CHK}z-${one}.see
+fi
+
+if [ "$cproot" = "yes" ]; then
+rm -f ${OPX}z-${one}.optns
+fi
+
+if [ "$2" = "y-" ]; then
+rm -f ${OPX}z-${one}.optns
+fi
+
+rm -f gmon.out
+
+
