@@ -180,6 +180,12 @@ ln -s "${EPOSDIR}/README.md" README.md
 # let's try to provide this with a symlink
 ln -s ${EPOS4DATA} src
 
+# Required in current directory!!!
+ln -s ${EPOS4DATA}/KWt/eos4f.eos z-eos4f.eos
+
+# PROBLEM!!! TO BE SOLVED!!! this files need to be deleted
+[[ -e "${EPOS4DATA}/UR/tables.dat" ]] && rm -rf "${EPOS4DATA}/UR/tables.dat"
+
 # Generate base (??) instruction card for simulation
 clinput="$(basename ${inputfile_name_new} .optns).clinput"
 
