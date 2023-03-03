@@ -193,7 +193,7 @@ ln -s ${EPOS4DATA}/KWt/eos4f.eos z-eos4f.eos
 [[ -e "${EPOS4DATA}/UR/tables.dat" ]] && rm -rf "${EPOS4DATA}/UR/tables.dat"
 
 echo "echo on
-!fname mtr ${CHK}z-${one}.mtr
+!fname mtr ${CHK}${sim_filename}.mtr
 set seedj ${RAND_SEED1} set seedi ${RAND_SEED2}
 rootcproot ${rootcproot}
 system ${system}
