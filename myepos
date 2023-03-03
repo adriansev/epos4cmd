@@ -254,15 +254,19 @@ stopprogram
 
 # create simulation running script
 echo "
+#!/usr/bin/env bash
+exec >>  sim.out
+exec 2>> sim.err
+
 # if tables.dat is missing, it will be created first, the program will stop so we need a 2nd start
 [[ ! -e tables.dat ]] && TO_BE_RESTARTED=1
 
 export TIME='Elapsed=%e (%E)\ncpu_u=%U cpu_sys=%S cpu_ratio=%P\nRSS_avg=%t RSS_max=%M'
-CMD=\"/usr/bin/time ./Xepos -n >>sim.out 2>>sim.err\"
+CMD=\"/usr/bin/time ./Xepos -n\"
 
 echo -e \"\n${clinput}\n\" | \${CMD}
 if [[ -n \"\${TO_BE_RESTARTED}\" ]]; then
-    echo -e \"\n#################\n#################\n\" | tee sim.out sim.err > /dev/null
+    echo -e \"\n#################\n#################\n\"
     echo -e \"\n${clinput}\n\" | \${CMD}
 fi
 " > startsim
