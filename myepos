@@ -146,7 +146,7 @@ inputfile_name_new="z-${inputfile_name}-${num}.optns"
 cp -v "${filei}.optns" "${RUNDIR}/${inputfile_name_new}" || { echo "Could not copy ${inputfile_name_new} to RUNDIR"; exit 1; }
 
 # change to temporary dir
-cd "${RUNDIR}"
+pushd "${RUNDIR}" &> /dev/null
 
 # Get two real random number to be used
 # upper limit is --> seedi larger than 1.0E+09
@@ -256,20 +256,40 @@ stopprogram
 echo "
 # if tables.dat is missing, it will be created first, the program will stop so we need a 2nd start
 [[ ! -e tables.dat ]] && TO_BE_RESTARTED=1
-echo -e \"\n${clinput}\n\" | time ./Xepos -n >sim.out 2>sim.err
 
+export TIME='Elapsed=%e (%E)\ncpu_u=%U cpu_sys=%S cpu_ratio=%P\nRSS_avg=%t RSS_max=%M'
+CMD=\"/usr/bin/time ./Xepos -n >>sim.out 2>>sim.err\"
+
+echo -e \"\n${clinput}\n\" | \${CMD}
 if [[ -n \"\${TO_BE_RESTARTED}\" ]]; then
-    echo >> sim.out
-    echo >> sim.err
-    echo -e \"\n${clinput}\n\" | time ./Xepos -n >>sim.out 2>>sim.err
+    echo -e \"\n#################\n#################\n\" | tee sim.out sim.err > /dev/null
+    echo -e \"\n${clinput}\n\" | \${CMD}
 fi
 " > startsim
 
 chmod +x startsim
 ./startsim
+SIM_EXITCODE=$?
 
-date
-exit
+popd
 
 ## Copy out the relevant files from temporary directory and delete the temporary
+cp -ar -t . \
+"${RUNDIR}"/sim.err \
+"${RUNDIR}"/sim.out \
+"${RUNDIR}"/*.histo* \
+"${RUNDIR}"/*.check \
+"${RUNDIR}"/*.copy \
+"${RUNDIR}"/*.log \
+"${RUNDIR}"/*.data \
+"${RUNDIR}"/*.root \
+"${RUNDIR}"/*.clinput \
+"${RUNDIR}"/*.py \
+"${RUNDIR}"/*.hq \
+"${RUNDIR}"/*.see
 
+# clean up temp dir
+[[ -z "${EPOS4_KEEP_TMPDIR}" && -d "${RUNDIR}" ]] && rm -rf "${RUNDIR}"
+
+date
+exit ${SIM_EXITCODE}
