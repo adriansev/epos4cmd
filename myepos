@@ -275,7 +275,7 @@ chmod +x startsim
 ./startsim
 SIM_EXITCODE=$?
 
-popd
+popd &> /dev/null
 
 ## Copy out the relevant files from temporary directory and delete the temporary
 cp -ar -t . \
