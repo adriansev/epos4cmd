@@ -210,13 +210,11 @@ fname user1  ${EPOS4DATA}/VOt/
 fname user3  ${EPOS4DATA}/URt/
 fname user2  ${HTO}${sim_filename}.hq
 !-------HQ END--------
-
 fname histo  ${HTO}${sim_filename}.histo
 fname check  ${CHK}${sim_filename}.check
 fname copy   ${CHK}${sim_filename}.copy
 fname log    ${CHK}${sim_filename}.log
 fname data   ${CHK}${sim_filename}.data
-
 fname pathpdf ${EPOS4DATA}/TPt/
 fname initl   ${EPOS4DATA}/KWt/aa.i
 fname inidi   ${EPOS4DATA}/TPt/di.i
@@ -228,12 +226,10 @@ fname inigrv  ${EPOS4DATA}/grv.i
 fname partab  ${EPOS4DATA}/YK/ptl6.data
 fname dectab  ${EPOS4DATA}/YK/dky6.data
 fname hpf     tables.dat
-
 fqgsjet dat    ${EPOS4DATA}/qgsjet/qgsjet.dat
 fqgsjet ncs    ${EPOS4DATA}/qgsjet/qgsjet.ncs
 fqgsjetII dat  ${EPOS4DATA}/qgsjetII/qgsdat-II-03
 fqgsjetII ncs  ${EPOS4DATA}/qgsjetII/sectnu-II-03
-
 nodecay 1220
 nodecay -1220
 nodecay 120
@@ -245,12 +241,10 @@ nodecay 14
 nodecay -14
 nodecay 16
 nodecay -16
-
 input  ${EPOS4DATA}/config/parbf.i
 input  ${EPOS4DATA}/config/partx.i
 input  ${EPOS4DATA}/KWn/paraf.i
 input  ${inputfile_name_new}
-
 runprogram
 stopprogram
 " > ${clinput}
